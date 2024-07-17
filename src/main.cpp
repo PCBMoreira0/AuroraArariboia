@@ -1,54 +1,71 @@
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include <LoRa.h>
 #include <DabbleESP32.h>
 
-const int escPin1 = GPIO_NUM_18;
-const int escPin2 = GPIO_NUM_19;
+const int escPinL = GPIO_NUM_26;
+const int escPinR = GPIO_NUM_25;
 
-Servo esc1 = Servo();
-Servo esc2 = Servo();
+Servo escL = Servo();
+Servo escR = Servo();
+
+unsigned long signalTimeoutLastMeasure = millis();
+unsigned long signalTimeout = 5000;
+
+uint32_t rL = 0;
+uint32_t rR = 0;
+
 
 void setup() {
-  	// put your setup code here, to run once:
-  	Serial.begin(115200); 
-	Dabble.begin("MyEsp32");
-
-	esc1.attach(escPin1, 1000, 2000);
-	esc2.attach(escPin2, 1000, 2000);
+    Serial.begin(9600);
+    LoRa.setPins(5, 4, 2);
+    LoRa.begin(433E6);
+	escL.attach(escPinL, 1000, 2000);
+	escR.attach(escPinR, 1000, 2000);
 }
 
 void loop() {
-  	Dabble.processInput();
+    char speed[8];
+    int p = LoRa.parsePacket();
+    if(p){
+        if(LoRa.available()){
+            signalTimeoutLastMeasure = millis();
 
-	// Raio representa o multiplicador de velocidade dos dois motores
-	float radius = abs(GamePad.gety_axis());
+            String s = LoRa.readString();
+            s.toCharArray(speed, 8, 0);
+        }
+        speed[7] = '\0';
+        int comma = 0;
+        for(int i = 0; speed[i] != '\0'; i++){
+            if(speed[i] == ','){
+                comma = i;
+                break;
+            }
+        }
+        // 34,100\0
+        char buff[4];
+        int i;
+        for(i = 0; i < comma; i++){
+            buff[i] = speed[i];
+        }
+        buff[i] = '\0';
+        
+        rL = atoi(buff);
 
-	// vet representa o eixo X do analógico (-7 a 7)
-	float vet = GamePad.getx_axis();
-
-	float vetE; // Quantos porcento o motor E está ligado
-	float vetD; // Quantos porcento o motor D está ligado
-	
-    if(GamePad.isSquarePressed()){
-        vetD = 1;
-		vetE = 0.35f;
-    }else if(GamePad.isCirclePressed()){
-        vetD = 0.35f;
-		vetE = 1;
-    }else{
-        vetE = 1;
-        vetD = 1;
+        char buff2[4];
+        int j = 0;
+        for(i = comma+1; speed[i] != '\0'; i++){
+            buff2[j++] = speed[i];
+        }
+        buff2[j] = '\0';
+        rR = atoi(buff2);
+        // Serial.println(speed);
+        Serial.printf("%d   %d\n", rL, rR);
     }
-
-	int escE = (int)(radius * vetE * 1000);
-	int escD = (int)(radius * vetD * 1000);
-
-	// // Envia o PWM para o ESC do motor (0 a 180)
-	int rE = map(escE, 0, 7000, 0, 180);
-	int rD = map(escD, 0, 7000, 0, 180);
-	
-	esc1.write(rE);
-	esc2.write(rD);
-
-	Serial.printf("%d     %d\n", rE, rD);
+    // if(millis() - signalTimeoutLastMeasure >= signalTimeout){
+    //     rL = 0;
+    //     rR = 0;
+    // }
+    escL.write(rL);
+	escR.write(rR);
 }
