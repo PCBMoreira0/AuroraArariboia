@@ -3,21 +3,25 @@
 #include <LoRa.h>
 #include <DabbleESP32.h>
 
-const int escPinL = GPIO_NUM_26;
-const int escPinR = GPIO_NUM_25;
+const int escPinL = GPIO_NUM_13;
+const int escPinR = GPIO_NUM_14;
 
 Servo escL = Servo();
 Servo escR = Servo();
 
 unsigned long signalTimeoutLastMeasure = millis();
-unsigned long signalTimeout = 5000;
+unsigned long signalTimeout = 3000;
 
-uint32_t rL = 0;
-uint32_t rR = 0;
+uint8_t rL = 0;
+uint8_t rR = 0;
 
+uint8_t deviceTxID = 0xFA;
 
 void setup() {
-    Serial.begin(9600);
+    // Set digital LOW to act as ground
+    pinMode(GPIO_NUM_12, OUTPUT);
+    digitalWrite(GPIO_NUM_12, LOW);
+
     LoRa.setPins(5, 4, 2);
     LoRa.begin(433E6);
 	escL.attach(escPinL, 1000, 2000);
@@ -25,47 +29,25 @@ void setup() {
 }
 
 void loop() {
-    char speed[8];
     int p = LoRa.parsePacket();
+
     if(p){
         if(LoRa.available()){
             signalTimeoutLastMeasure = millis();
-
-            String s = LoRa.readString();
-            s.toCharArray(speed, 8, 0);
-        }
-        speed[7] = '\0';
-        int comma = 0;
-        for(int i = 0; speed[i] != '\0'; i++){
-            if(speed[i] == ','){
-                comma = i;
-                break;
+            if(LoRa.read() == deviceTxID){
+                if(LoRa.read() == 2){
+                    rL = LoRa.read();
+                    rR = LoRa.read();
+                }
             }
         }
-        // 34,100\0
-        char buff[4];
-        int i;
-        for(i = 0; i < comma; i++){
-            buff[i] = speed[i];
-        }
-        buff[i] = '\0';
-        
-        rL = atoi(buff);
-
-        char buff2[4];
-        int j = 0;
-        for(i = comma+1; speed[i] != '\0'; i++){
-            buff2[j++] = speed[i];
-        }
-        buff2[j] = '\0';
-        rR = atoi(buff2);
-        // Serial.println(speed);
-        Serial.printf("%d   %d\n", rL, rR);
     }
-    // if(millis() - signalTimeoutLastMeasure >= signalTimeout){
-    //     rL = 0;
-    //     rR = 0;
-    // }
+
+    if(millis() - signalTimeoutLastMeasure >= signalTimeout){
+        rL = 0;
+        rR = 0;
+    }
+
     escL.write(rL);
 	escR.write(rR);
 }
