@@ -5,6 +5,9 @@
 // unsigned long lora_sending_delay_ms = 100;
 // unsigned long last_time_ms = 0;
 
+// uint8_t deviceID = 0xFA;
+// uint8_t payLoad_size = 2;
+
 // void setup() {
 // 	// inicialização Serial
 //   	Serial.begin(9600); 
@@ -12,7 +15,7 @@
 // 	// Dabble (comunicação com o app Dabble)
 // 	Dabble.begin("MyEsp32");
 
-// 	// // LoRa initialization
+// 	// LoRa initialization
 //     LoRa.setPins(5, 4, 2);
 // 	LoRa.begin(433E6);
 // }
@@ -40,14 +43,16 @@
 // 	int escE = (int)(radius * vetE * 1000);
 // 	int escD = (int)(radius * vetD * 1000);
 
-// 	// // Envia o PWM para o ESC do motor (0 a 180)
-// 	uint32_t rE = map(escE, 0, 7000, 0, 180);
-// 	uint32_t rD = map(escD, 0, 7000, 0, 180);
+// 	// Envia o PWM para o ESC do motor (0 a 180)
+// 	uint8_t rE = map(escE, 0, 7000, 0, 180);
+// 	uint8_t rD = map(escD, 0, 7000, 0, 180);
 	
-// 	char motorSpeed[8];
-// 	sprintf(motorSpeed, "%d,%d", rE, rD);
-//     Serial.printf("%d     %d\n", rE, rD);
 // 	LoRa.beginPacket();
-// 	LoRa.print(motorSpeed); 
+// 	// Envia ID para diferenciar dispositivo de outros
+// 	LoRa.write(deviceID);
+// 	// Tamanho do pacote
+// 	LoRa.write(payLoad_size);
+// 	LoRa.write(rE);
+//   LoRa.write(rD); 
 // 	LoRa.endPacket();
 // }
